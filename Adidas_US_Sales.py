@@ -21,7 +21,7 @@ import pandas as pd
 @st.cache_data
 def load_data():
     base_dir = os.path.dirname(__file__)
-    file_path = os.path.join(base_dir, "Adidas US Sales dashboard.xlsx")
+    file_path = os.path.join(base_dir, "Adidas US Sales Dashboard.xlsx")
     return pd.read_excel(file_path)
 
 df = load_data()
@@ -276,4 +276,5 @@ st.write("""
 • Online sales show higher margins than in-store.\n
 • A few states account for the majority of sales (Pareto effect).
 """)
+
 
