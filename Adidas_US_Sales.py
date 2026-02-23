@@ -13,11 +13,6 @@ st.subheader("Overview")
 st.markdown("This dashboard shows sales insights.")
 
 # Load Data
-
-import streamlit as st
-import os
-import pandas as pd
-
 @st.cache_data
 def load_data():
     base_dir = os.path.dirname(__file__)
@@ -25,6 +20,10 @@ def load_data():
     return pd.read_excel(file_path)
 
 df = load_data()
+
+
+# Convert Invoice Date to datetime
+df["Invoice Date"] = pd.to_datetime(df["Invoice Date"])
 
 st.sidebar.title("🔍 Dashboard Filters")
 st.sidebar.markdown("Use filters to explore sales performance")
@@ -54,13 +53,6 @@ filtered_df = df[
     (df["Invoice Date"] <= pd.to_datetime(date_range[1]))]
 
 
-filtered_df = df[
-    (df["Region"].isin(region)) &
-    (df["Product"].isin(product)) &
-    (df["Invoice Date"] >= pd.to_datetime(date_range[0])) &
-    (df["Invoice Date"] <= pd.to_datetime(date_range[1]))]
-
-
 
 # KPI CARDS
 
@@ -75,20 +67,33 @@ col3.metric("📈Operating Profit ($)", f"{filtered_df['Operating Profit'].sum()
 col4.metric("📊Avg Margin", f"{filtered_df['Operating Margin'].mean():.2%}")
 
 
-# SALES TREND OVER TIME
-sales_trend = filtered_df.groupby("Invoice Date")["Total Sales"].sum().reset_index()
+# MONTH OVER MONTH SALES TREND
+monthly_sales = (
+    filtered_df
+    .resample("M", on="Invoice Date")["Total Sales"]
+    .sum()
+    .reset_index()
+)
 
-fig_trend = px.line(
-    sales_trend,
+fig_mom = px.line(
+    monthly_sales,
     x="Invoice Date",
     y="Total Sales",
-    title="📈 Sales Trend Over Time")
+    markers=True,
+    title="📅 Monthly Sales Trend"
+)
 
-st.plotly_chart(fig_trend, use_container_width=True)
+st.plotly_chart(fig_mom, use_container_width=True)
+
 
 # SALES BY PRODUCTS
-
-product_sales = filtered_df.groupby("Product")["Total Sales"].sum().reset_index()
+product_sales = (
+    filtered_df
+    .groupby("Product")["Total Sales"]
+    .sum()
+    .sort_values(ascending=False)   # 👈 This is the important line
+    .reset_index()
+)
 
 fig_product = px.bar(
     product_sales,
@@ -99,14 +104,22 @@ fig_product = px.bar(
 
 st.plotly_chart(fig_product, use_container_width=True)
 
-# SALES BY REGION AND PROFIT BY RETAILER
 
+
+
+# SALES BY REGION AND PROFIT BY RETAILER
 col1, col2 = st.columns(2)
 
 region_sales = filtered_df.groupby("Region")["Total Sales"].sum().reset_index()
 fig_region = px.pie(region_sales, names="Region", values="Total Sales", title="🌎 Sales by Region")
 
-retailer_profit = filtered_df.groupby("Retailer")["Operating Profit"].sum().reset_index()
+retailer_profit = (
+    filtered_df
+    .groupby("Retailer")["Operating Profit"]
+    .sum()
+    .sort_values(ascending=False)  # 👈 Important line
+    .reset_index()
+)
 fig_retailer = px.bar(retailer_profit, x="Retailer", y="Operating Profit", title="🏪 Profit by Retailer")
 
 col1.plotly_chart(fig_region, use_container_width=True)
@@ -119,7 +132,6 @@ st.dataframe(filtered_df)
 
 
 # WHICH STATE CONTRIBUTE THE MOST REVENUE
-
 top_states = (
     filtered_df.groupby("State")["Total Sales"]
     .sum()
@@ -158,7 +170,6 @@ st.plotly_chart(fig_products, use_container_width=True)
 
 
 # Where do customers buy more — Online, Outlet, or In-Store?
-
 sales_method = (
     filtered_df.groupby("Sales Method")["Total Sales"]
     .sum()
@@ -173,27 +184,7 @@ fig_method = px.pie(
 st.plotly_chart(fig_method, use_container_width=True)
 
 
-
-# MONTH OVER MONTH SALES TREND
-
-filtered_df["Month"] = filtered_df["Invoice Date"].dt.to_period("M").astype(str)
-
-monthly_sales = (
-    filtered_df.groupby("Month")["Total Sales"]
-    .sum()
-    .reset_index())
-
-fig_mom = px.line(
-    monthly_sales,
-    x="Month",
-    y="Total Sales",
-    markers=True,
-    title="📅 Monthly Sales Trend")
-
-st.plotly_chart(fig_mom, use_container_width=True)
-
-
-# UNITS SOE VS PROFIT
+# UNITS SOLD VS PROFIT
 
 scatter_df = (
     filtered_df.groupby("Product")
@@ -214,8 +205,10 @@ fig_scatter = px.scatter(
 
 st.plotly_chart(fig_scatter, use_container_width=True)
 
-# Are higher-priced products selling less?
 
+
+
+# Are higher-priced products selling less?
 price_units = (
     filtered_df.groupby("Product")
     .agg({
@@ -236,8 +229,9 @@ st.plotly_chart(fig_price, use_container_width=True)
 # st.write("Higher prices do impact the sale")
 
 
-# SALES CONCENTRATION
 
+
+# SALES CONCENTRATION
 pareto_df = (
     filtered_df.groupby("State")["Total Sales"]
     .sum()
@@ -254,20 +248,8 @@ fig_pareto = px.line(
 
 st.plotly_chart(fig_pareto, use_container_width=True)
 
-# Is profit margin consistent or volatile?
-
-fig_box = px.box(
-    filtered_df,
-    x="Product",
-    y="Operating Margin",
-    title="📦 Operating Margin Distribution by Product")
-
-st.plotly_chart(fig_box, use_container_width=True)
 
 
-if filtered_df.empty:
-    st.warning("No data available for selected filters")
-    st.stop()
 
 st.markdown("## 🧠 Key Insights")
 
@@ -276,5 +258,6 @@ st.write("""
 • Online sales show higher margins than in-store.\n
 • A few states account for the majority of sales (Pareto effect).
 """)
+
 
 
