@@ -22,6 +22,15 @@ def load_data():
 
 df = load_data()
 
+def format_millions(value):
+    return f"${value/1_000_000:,.2f}M"
+
+def format_thousands(value):
+    return f"{value/1_000:,.1f}K"
+
+def format_number(value):
+    return f"{value:,.0f}"
+    
 
 # Convert Invoice Date to datetime
 df["Invoice Date"] = pd.to_datetime(df["Invoice Date"])
@@ -67,18 +76,21 @@ filtered_df = df[
 
 # KPI CARDS
 
-def format_millions(value):
-    return f"${value/1_000_000:.2f}M"
-
+# KPI CARDS
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("💰Total Sales ($)",f"{filtered_df['Total Sales'].sum():,.0f}")
-col2.metric("📦Units Sold", f"{filtered_df['Units Sold'].sum():,}")
-col3.metric("📈Operating Profit ($)", f"{filtered_df['Operating Profit'].sum():,.0f}")
-weighted_margin = (
-    filtered_df["Operating Profit"].sum() /
-    filtered_df["Total Sales"].sum())
-col4.metric("📊Weighted Profit Margin", f"{weighted_margin:.2%}")
+total_sales = filtered_df["Total Sales"].sum()
+units_sold = filtered_df["Units Sold"].sum()
+total_profit = filtered_df["Operating Profit"].sum()
+
+col1.metric("💰 Total Sales", format_millions(total_sales))
+col2.metric("📦 Units Sold", format_thousands(units_sold))
+col3.metric("📈 Operating Profit", format_millions(total_profit))
+
+weighted_margin = total_profit / total_sales if total_sales != 0 else 0
+col4.metric("📊 Weighted Profit Margin", f"{weighted_margin:.2%}")
+
+
 
 
 # TOP PERFORMING PRODUCTS
@@ -361,6 +373,7 @@ st.write("""
 • Online sales show higher margins than in-store.\n
 • A few states account for the majority of sales (Pareto effect).
 """)
+
 
 
 
